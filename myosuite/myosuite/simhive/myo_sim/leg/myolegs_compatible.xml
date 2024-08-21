@@ -1,0 +1,175 @@
+<?xml version="1.0" ?>
+<mujoco model="MyoSuite's MyoLeg Model">
+<!-- =================================================
+    Copyright 2020 Vikash Kumar, Vittorio Caggiano, Huawei Wang
+    Model   :: Myo Hand (MuJoCoV2.0)
+    Author  :: Vikash Kumar (vikashplus@gmail.com), Vittorio Caggiano, Huawei Wang
+    source  :: https://github.com/vikashplus
+    License :: Under Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+====================================================== -->
+
+    <include file="../scene/myosuite_scene_noPedestal.xml"/>
+    <include file="../torso/assets/myotorsorigid_assets.xml"/>code
+    <include file="../leg/assets/myolegs_assets.xml"/>
+
+    <compiler angle="radian" meshdir=".." texturedir=".."/>
+
+    <asset>
+        <hfield name="terrain" size="7 7 1 0.001" nrow="100" ncol="100"/>
+    </asset>
+    <asset>
+        <mesh name="back_pack" file="leg/back_pack.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="hip_sa" file="leg/hip_sa.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="thigh-l_s" file="leg/thigh-l_s.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="knee-l" file="leg/knee-l.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="shank-l" file="leg/shank-l.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="ankle" file="leg/ankle.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="foot-l" file="leg/foot-l.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="hip-r" file="leg/hip-r.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="thigh-r" file="leg/thigh-r.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="knee-r" file="leg/knee-r.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="shank-r" file="leg/shank-r.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="foot-r" file="leg/foot-r.stl" scale="0.001 0.001 0.001"/>
+    </asset>
+    <actuator>
+      <motor name="left_hip_joint_motor" joint="left_hip_joint" ctrlrange="-1000 1000" ctrllimited="true" />
+      <motor name="left_knee_joint_motor" joint="left_knee_joint" ctrlrange="-1000 1000" ctrllimited="true" />
+      <motor name="right_hip_joint_motor" joint="right_hip_joint" ctrlrange="-1000 1000" ctrllimited="true" />
+      <motor name="right_knee_joint_motor" joint="right_knee_joint" ctrlrange="-1000 1000" ctrllimited="true" />
+      <!-- Define more actuators for other joints as needed -->
+    </actuator>
+    <worldbody>
+
+        <geom name="terrain" type="hfield" hfield="terrain" pos="0 0 -0.005" material="matfloor" conaffinity="1" contype="1" rgba="1 1 1 0"/>
+        <site name="pelvis_target" size="0.02" pos="0 0 .92" group="4"/>
+
+        <body name="root" pos="0 0 1" euler="0 0 0">
+            <include file="../torso/assets/myotorsorigid_chain.xml"/>
+            <include file="../leg/assets/myolegs_chain.xml"/>
+            <freejoint name="root"/>
+        </body>
+        <body name="backpack" pos="-0.2 0 1.1" quat="0.5 0.5 0.5 0.5">
+          <inertial pos="0.00139519 -0.0747498 0.0143736" quat="0.151867 0.690827 0.155128 0.689659" mass="8.063" diaginertia="0.315764 0.220453 0.150665"/>
+          <freejoint name="root_exo"/>
+          <!-- <joint name="world_to_backpack" pos="0 0 0" axis="-1 0 0" range="-1.5708 1.5708" actuatorfrcrange="-40 40" damping="1" frictionloss="2" /> -->
+          <site name="s_backpack_center" pos="0 0.05 0" size=".01" rgba = "1 0 0 1"/>
+          <geom type="mesh" contype="1" conaffinity="1" group="1" density="0" mesh="back_pack"/>
+          <geom pos="0.216605 -0.220265 0.13831" quat="0 0 0.707107 0.707107" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="hip_sa"/>
+          <geom pos="-0.216605 -0.220265 0.13831" quat="0.707107 -0.707107 0 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="hip-r"/>
+          <body name="left_upper_thigh" pos="0.207275 -0.220265 0.13831" quat="-1 0 0 0">
+            <site name="s_lThigh_cuff_front" pos="-0.08 -0.09 -0.085" size="0.01" rgba = "1 0 0 1"/>
+            <site name="s_lThigh_cuff_side" pos="-0.01 -0.09 0" size="0.01" rgba = "1 0 0 1"/>
+            <inertial pos="-0.0044319 -0.254625 0.000368545" quat="0.713939 0.671779 -0.127372 0.150933" mass="2.1844" diaginertia="0.0398119 0.0387337 0.00242996"/>
+            <joint name="left_hip_joint" pos="0 0 0" axis="-1 0 0" range="-0.698132 2.0944" damping="2" frictionloss="2"/>
+            <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="thigh-l_s"/>
+            <geom pos="-0.00313 -0.37 0" quat="0 0 1 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="knee-l"/>
+            <body name="left_upper_thigh_drive_inertia">
+              <inertial pos="0 0 0" mass="0.1" diaginertia="0.0001246 0.0001 0.0001"/>
+              <joint name="left_hip_joint_drive" pos="0 0 0" axis="1 0 0"/>
+            </body>
+            <body name="left_upper_shank" pos="-0.01687 -0.37 0" quat="0 0 1 0">
+              <site name="exo_knee_l" pos="0.01 0 0" size="0.005" rgba="0 .7 0 1"/>
+              <site name="left_cuff_side" pos="0.02 -0.1 0" size="0.005" rgba="0 .7 0 1"/>
+              <site name="left_cuff_front" pos="0.07 -0.1 -0.07" size="0.005" rgba="0 .7 0 1"/>
+              <site name="feet_force_sensor_left" pos="0.058 -0.476 -0.05" type="box" size="0.075 0.001 0.15" rgba="0.827 0.341 0.172 1"/>
+              <inertial pos="0.0271111 -0.312012 -0.0161233" quat="0.486474 0.547085 -0.466021 0.496856" mass="1.6105" diaginertia="0.0608441 0.0602235 0.00939794"/>
+              <joint name="left_knee_joint" pos="0 0 0" axis="1 0 0" range="-2.0944 0" damping="2" frictionloss="2"/>
+              <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="shank-l"/>
+              <geom pos="-0.006 -0.36 0" quat="0.707107 -0.707107 0 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="ankle"/>
+              <geom pos="-0.006 -0.36 0" quat="0.707107 -0.707107 0 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="foot-l"/>
+              <body name="left_upper_shank_drive_inertia">
+                <inertial pos="0 0 0" mass="0.1" diaginertia="0.0001246 0.0001 0.0001"/>
+                <joint name="left_knee_joint_drive" pos="0 0 0" axis="1 0 0"/>
+              </body>
+            </body>
+            </body>
+          <body name="right_upper_thigh" pos="-0.207275 -0.220265 0.13831" quat="0 0 1 0">
+            <site name="s_rThigh_cuff_front" pos="-0.08 -0.09 0.085" size="0.01" rgba = "1 0 0 1"/>
+            <site name="s_rThigh_cuff_side" pos="-0.02 -0.09 0" size="0.01" rgba = "1 0 0 1"/>
+            <inertial pos="-0.0044319 -0.254625 -0.000368545" quat="0.671779 0.713939 0.150933 -0.127372" mass="2.1844" diaginertia="0.0398119 0.0387337 0.00242996"/>
+            <joint name="right_hip_joint" pos="0 0 0" axis="1 0 0" range="-0.698132 2.0944" damping="2" frictionloss="2"/>
+            <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="thigh-r"/>
+            <geom pos="-0.00313 -0.37 0" quat="0 0 1 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="knee-r"/>
+            <body name="right_upper_thigh_drive_inertia">
+              <inertial pos="0 0 0" mass="0.1" diaginertia="0.0001246 0.0001 0.0001"/>
+              <joint name="right_hip_joint_drive" pos="0 0 0" axis="-1 0 0"/>
+            </body>
+            <body name="right_upper_shank" pos="-0.01687 -0.37 0" quat="0 0 1 0">
+              <site name="right_cuff_side" pos="0.02 -0.1 0" size="0.005" rgba="0 .7 0 1"/>
+              <site name="right_cuff_front" pos="0.07 -0.1 0.07" size="0.005" rgba="0 .7 0 1"/>
+              <site name="feet_force_sensor_right" pos="0.058 -0.476 0.05" type="box" size="0.075 0.001 0.15" rgba="0.827 0.341 0.172 1"/>
+              <inertial pos="0.0271111 -0.312012 0.0161233" quat="0.466021 0.496856 -0.486474 0.547085" mass="1.6105" diaginertia="0.0608441 0.0602235 0.00939794"/>
+              <joint name="right_knee_joint" pos="0 0 0" axis="-1 0 0" range="-2.0944 0" damping="2" frictionloss="2"/>
+              <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="shank-r"/>
+              <geom pos="-0.006 -0.36 0" quat="0.707107 -0.707107 0 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="ankle"/>
+              <geom pos="-0.006 -0.36 0" quat="0.707107 -0.707107 0 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="foot-r"/>
+              <body name="right_upper_shank_drive_inertia">
+                <inertial pos="0 0 0" mass="0.1" diaginertia="0.0001246 0.0001 0.0001"/>
+                <joint name="right_knee_joint_drive" pos="0 0 0" axis="-1 0 0"/>
+              </body>
+            </body>
+          </body>
+        </body>
+
+    </worldbody>
+
+
+
+    <tendon>
+        <spatial name="rightThigh_cuff_front" limited="true" range="0 0.05" width="0.003" stiffness="1500" damping="10">
+            <site site="s_thigh_right_back"/>
+            <site site="s_rThigh_cuff_front"/>
+        </spatial>
+        <spatial name="rightThigh_cuff_side" limited="true" range="0 0.05" width="0.003" stiffness="1500" damping="10">
+            <site site="s_thigh_right_side"/>
+            <site site="s_rThigh_cuff_side"/>
+        </spatial>
+
+        <spatial name="rightKnee_cuff_front" limited="true" range="0 0.05" width="0.003" stiffness="1500" damping="10">
+            <site site="human_rknee_front"/>
+            <site site="right_cuff_front"/>
+        </spatial>
+        <spatial name="rightKnee_cuff_side" limited="true" range="0 0.05" width="0.003" stiffness="1500" damping="10">
+            <site site="human_rknee_side"/>
+            <site site="right_cuff_side"/>
+        </spatial>
+
+        <spatial name="leftThigh_cuff_front" limited="true" range="0 0.05" width="0.003" stiffness="1500" damping="10">
+            <site site="s_thigh_left_back"/>
+            <site site="s_lThigh_cuff_front"/>
+        </spatial>
+        <spatial name="leftThigh_cuff_side" limited="true" range="0 0.05" width="0.003" stiffness="1500" damping="10">
+            <site site="s_thigh_left_side"/>
+            <site site="s_lThigh_cuff_side"/>
+        </spatial>
+
+        <spatial name="leftKnee_cuff_front" limited="true" range="0 0.05" width="0.003" stiffness="1500" damping="10">
+            <site site="human_lknee_front"/>
+            <site site="left_cuff_front"/>
+        </spatial>
+        <spatial name="leftKnee_cuff_side" limited="true" range="0 0.05" width="0.003" stiffness="1500" damping="10">
+            <site site="human_lknee_side"/>
+            <site site="left_cuff_side"/>
+        </spatial>
+    </tendon>
+
+    <tendon>
+      <spatial name="back_connection" limited="true" range="0 0.02" width="0.003" stiffness="10000" damping="10">
+          <site site="human_back_anchor"/>
+          <site site="s_backpack_center"/>
+      </spatial>
+    </tendon>
+
+    <equality>
+      <weld body1="left_upper_shank" body2 = "calcn_l" solimp="0.9 0.95 0.001" solref="0.005 1" anchor="0 0 -0.1"/>
+      <weld body1="right_upper_shank" body2 = "calcn_r" solimp="0.9 0.95 0.001" solref="0.005 1" anchor="0 0 -0.1"/>
+    </equality>
+    
+    <sensor>
+    <!-- <touch site="floor_contact_foot"/> -->
+      <touch site="feet_force_sensor_left"/>
+      <touch site="feet_force_sensor_right"/>
+    </sensor>
+  
+
+</mujoco>
