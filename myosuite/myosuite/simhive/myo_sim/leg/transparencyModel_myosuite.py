@@ -24,7 +24,7 @@ lasty = 0
 
 # Time duration for the motion
 t_init = 0
-t_end =  10
+t_end =  5
 t = []
 qact0 = []
 qref0 = []
@@ -38,7 +38,7 @@ qref3 = []
 # Input parameters. The desired starting point and ending point(in angle [rad])
 
 q0_init = 0  # Initial joint angle of human knee joint (left human knee)
-q0_end = 1.57/2.0  # desired end joint angle of human knee joint (left human knee)
+q0_end = 1.37/2.0  # desired end joint angle of human knee joint (left human knee)
 q1_init = 0  # Initial joint angle of human hip joint (left human hip)
 q1_end = 0  # desired end joint angle of human hip joint (left human hip)
 
@@ -95,9 +95,9 @@ def controller(model, data):
 
     time = data.time
     # Define the amplitude and frequency of the sine wave
-    amplitude = 1.57/2.0  # example amplitude (can be adjusted)
-    frequency = 1  # example frequency in Hz (can be adjusted)
-    offset = 1.57/2.0  # example offset (can be adjusted)
+    amplitude = 1.37/2.0  # example amplitude (can be adjusted)
+    frequency = 1 # example frequency in Hz (can be adjusted)
+    offset = 1.37/2.0  # example offset (can be adjusted)
 
     if time > t_end:
         time = t_end
@@ -124,22 +124,24 @@ def controller(model, data):
     )
     q3dot_ref = a_jnt3[1] + 2 * a_jnt3[2] * time + 3 * a_jnt3[3] * (time**2)
 
-    kp = 20
-    kd = 0.1
-
+    kp = 15
+    kd = 0.5
     
-    
-    actid_left_knee = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "bflh_l")
+    actid_left_knee = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "gasmed_l")
     if(actid_left_knee != -1):
         data.ctrl[actid_left_knee] = kp * (q0_ref - data.qpos[qpos_left_knee]) + kd * (
             q0dot_ref - data.qvel[qpos_left_knee]
-        )  # left knee (bflh_l/bfsh_l/gaslat_l/gasmed_l)
+        )
+        # left knee (bflh_l/bfsh_l/gaslat_l/gasmed_l->gasmed_l will not relate to the hip part, good for isolation)
     
-    actid_left_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "glmax1_l")
-    data.ctrl[actid_left_hip] = kp * (q1_ref - data.qpos[qpos_left_hip]) + kd * (
-        q1dot_ref - data.qvel[qpos_left_hip]
+    actid_left_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "psoas_l")
+    # data.ctrl[actid_left_hip] = kp * (q1_ref - data.qpos[qpos_left_hip]) + kd * (
+    #     q1dot_ref - data.qvel[qpos_left_hip]
+    # ) 
 
-    )  # left hip(glmax1_l/glmax2_l/glmax3_l)
+    actid_left_exo_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "left_hip_joint_motor")
+    # print(data.ctrl[actid_left_exo_hip])
+    # left hip(glmax1_l/glmax2_l/glmax3_l)
 
     actid_right_knee = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "bflh_r")
     data.ctrl[actid_right_knee] = kp * (q2_ref - data.qpos[qpos_right_knee]) + kd * (
@@ -163,7 +165,7 @@ def controller(model, data):
     mass = 0
     for i in range(model.nbody):
         mass += model.body_mass[i]
-    print("The total mass of the body is: ", mass)
+    # print("The total mass of the body is: ", mass)
     grav.append(mass * 9.81) #change the index and see what happened 
     # contact_force.append(data.sensordata[0])
 

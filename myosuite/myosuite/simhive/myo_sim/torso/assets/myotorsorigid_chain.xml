@@ -9,16 +9,18 @@
 
     <body name="torso" childclass="myotorso">
         <geom mesh="torso" name="torso" type="mesh" pos="0 0 -.94" euler="0 0 -1.57"/>
+        <site name="head_anchor_top" size="0.01" rgba = "1 0 0 1" pos="-0.1 0 0.75"/>
         <site name="human_back_anchor" size="0.01" rgba = "0 0 1 1" pos="-0.18 0 0.16"/>
         <body name="head" pos="-.21 0 .090" euler="1.57 0 -.2">
             <geom class="myotorso_coll" name="hat_spine_coll" type="capsule" size="0.055 0.10" pos="-.01 .510 0" euler="1.57 .2 0"/>
             <geom class="myotorso_coll" name="hat_jaw_coll2" type="ellipsoid" size="0.07 0.12 0.065" pos=".025 .545 0" euler="0 0 .7"/>
-
             <geom class="myotorso_coll" name="hat_skull_coll" type="ellipsoid" size="0.1 0.1 0.075" pos="0 .575 0"/>
             <inertial pos="0 0 0" mass="5.0"/>
         </body>
 
         <geom type="capsule" class="myotorso_coll" size="0.080 0.077"  pos="-.065 0 .060" euler="1.57 0 0"/>
+        <site name="torso_anchor_left" size="0.01" rgba = "0 0 1 1" pos="-.065 0.16 .060"/>
+        <site name="torso_anchor_right" size="0.01" rgba = "0 0 1 1" pos="-.065 -0.16 .060"/>
         <geom type="ellipsoid" class="myotorso_coll" size="0.095 0.140 0.140"  pos="-.085 0 .200" euler="1.57 0 0"/>
         <!-- <geom type="capsule" class="myotorso_coll" size="0.110 0.065"  pos="-.090 0 .330" euler="1.57 0 0"/> -->
         <!-- <geom type="capsule" class="myotorso_coll" size="0.075 0.145"  pos="-.110 0 .415" euler="1.57 0 0"/> -->
