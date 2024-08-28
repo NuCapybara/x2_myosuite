@@ -52,6 +52,7 @@ q3_end = 0# desired end joint angle of human hip joint (right human hip)
 #Containers
 qact_exo_lknee_inertia = []
 qact_exo_lknee = []
+qact_exo_lhip = []
 # human_knee_torque appends the control signal calculated to the human knee joint
 human_knee_torque = []
 knee_joint_smooth_force = []
@@ -61,6 +62,7 @@ knee_passive_force = []
 exo_knee_act_force = []
 exo_knee_contraint_force = []
 err_exo_left_knee = []
+err_exo_left_hip = []
 exo_left_knee_control_signal = []
 
 grav = []
@@ -126,20 +128,33 @@ def controller(model, data):
 
     kp = 15
     kd = 0.5
+    kp_exo_force = 2000
     
     actid_left_knee = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "gasmed_l")
     if(actid_left_knee != -1):
         data.ctrl[actid_left_knee] = kp * (q0_ref - data.qpos[qpos_left_knee]) + kd * (
             q0dot_ref - data.qvel[qpos_left_knee]
         )
-        # left knee (bflh_l/bfsh_l/gaslat_l/gasmed_l->gasmed_l will not relate to the hip part, good for isolation)
+    # left knee (bflh_l/bfsh_l/gaslat_l/gasmed_l->gasmed_l will not relate to the hip part, good for isolation)
     
-    actid_left_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "psoas_l")
+    ###Actuate the human left hip joint
+    # actid_left_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "psoas_l")
     # data.ctrl[actid_left_hip] = kp * (q1_ref - data.qpos[qpos_left_hip]) + kd * (
     #     q1dot_ref - data.qvel[qpos_left_hip]
     # ) 
 
+    ###Actuate the left hip joint of the **exoskeleton** to keep the hip joint angle as 0
+    
+    left_exo_hip_joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "left_hip_joint")
+    qpos_left_exo_hip = model.jnt_qposadr[left_exo_hip_joint_id]
+
+    err_exo_left_hip_qpos = 0 - data.qpos[qpos_left_exo_hip]
     actid_left_exo_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "left_hip_joint_motor")
+    # # print("The left hip joint id is: ", actid_left_exo_hip)
+    data.ctrl[actid_left_exo_hip] = kp_exo_force * err_exo_left_hip_qpos
+    qact_exo_lhip.append(data.qpos[qpos_left_exo_hip])
+    # print(data.ctrl[actid_left_exo_hip])
+
     # print(data.ctrl[actid_left_exo_hip])
     # left hip(glmax1_l/glmax2_l/glmax3_l)
 
@@ -148,7 +163,7 @@ def controller(model, data):
         q2dot_ref - data.qvel[qpos_right_knee]
     )  # right knee(bflh_r/bfsh_r/gaslat_r/gasmed_r)
 
-    actid_right_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "glmax1_r")
+    actid_right_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "psoas_r")
     data.ctrl[actid_right_hip] = kp * (q3_ref - data.qpos[qpos_right_hip]) + kd * (
         q3dot_ref - data.qvel[qpos_right_hip]
     )  # right hip(glmax1_r/glmax2_r/glmax3_r)
@@ -174,27 +189,51 @@ def controller(model, data):
 
 
 
-    qact_exo_lknee_inertia.append(data.qpos[qpos_exo_left_knee_inertia])
-    bias_torque_calculated = (
-        math.sin(math.pi - data.qpos[qpos_exo_left_knee_inertia]) * (1.6105) * 9.81 * 0.312012
-    )
-    torque_calculated.append(bias_torque_calculated)
-    qact_exo_lknee.append(data.qpos[qpos_exo_left_knee])
 
+
+    # Actuate the left thigh joint of the exoskeleton-Transparency control
+    # Issue: seems transparency model on both knee and hip will result in the fluctuation of the interaction torque, 
+    trans_kp = 1.6
+
+    M_thigh = 2.1844
+    qpos_exo_left_hip_inertia = model.jnt_qposadr[left_exo_hip_joint_id]
+    len_thigh = 0.37
+    alpha = data.qpos[qpos_exo_left_hip_inertia]
+    theta = data.qpos[qpos_exo_left_knee_inertia]
+    com_shank_to_knee = 0.312012
+    com_thigh_to_hip = 0.254625
+    M_shank = 1.6105
+    g = 9.81
+    bias_torque_left_thigh_calculated = (
+        ((math.sin(alpha) * len_thigh + com_shank_to_knee * math.sin(theta))* M_shank * g)
+        + (math.sin(data.qpos[qpos_exo_left_hip_inertia]) * M_thigh * g * com_thigh_to_hip)
+    )
+    dofadr_exo_left_hip = model.jnt_dofadr[left_exo_hip_joint_id]
+    err_int_t_exo_hip_left = 0 - (data.qfrc_smooth[dofadr_exo_left_hip] + data.qfrc_constraint[dofadr_exo_left_hip] - bias_torque_left_thigh_calculated)
+    data.ctrl[actid_left_exo_hip] = trans_kp * err_int_t_exo_hip_left + bias_torque_left_thigh_calculated
+    err_exo_left_hip.append(err_int_t_exo_hip_left)
+    
     # Goal:minimize torque_interacion: 
     #T_int = T_exo_joint - bias_torque_calculated 
     #      = qfrc_smooth + qfrc_constraint - bias_torque_calculated
-    trans_kp = 1.6
+
+    qact_exo_lknee_inertia.append(data.qpos[qpos_exo_left_knee_inertia])
+    bias_torque_calculated = (
+        math.sin(math.pi - data.qpos[qpos_exo_left_knee_inertia]) * (M_shank) * 9.81 * com_shank_to_knee
+    )
+    torque_calculated.append(bias_torque_calculated)
+    qact_exo_lknee.append(data.qpos[qpos_exo_left_knee])
+    
     actid_left_exo_knee = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "left_knee_joint_motor")
     #int torque reference = 0, so ref-action = 0 - (qfrc_smooth + qfrc_constraint - bias_torque_calculated)
-    err_int_torque = 0 - (data.qfrc_smooth[dofadr_exo_left_knee] + data.qfrc_constraint[dofadr_exo_left_knee] - bias_torque_calculated)
+    err_int_t_exo_knee_ = 0 - (data.qfrc_smooth[dofadr_exo_left_knee] + data.qfrc_constraint[dofadr_exo_left_knee] - bias_torque_calculated)
     # plus the bias torque calculated for the feed forward control. bc when the int torque is 0,
     # at the time, the control signal is 0 by just kp*err_int_torque, we need to compensate the bias torque, 
     # so we add the bias torque calculated
-    data.ctrl[actid_left_exo_knee] = trans_kp * err_int_torque + bias_torque_calculated 
+    data.ctrl[actid_left_exo_knee] = trans_kp * err_int_t_exo_knee_ + bias_torque_calculated 
     
 
-    err_exo_left_knee.append(err_int_torque)
+    err_exo_left_knee.append(err_int_t_exo_knee_)
     exo_left_knee_control_signal.append(data.ctrl[actid_left_exo_knee])
 
     # print(data.qpos[22])
@@ -404,7 +443,7 @@ with open("sensor_data.csv", mode="a") as file:
             knee_joint_smooth_force = knee_joint_smooth_force[:min_length]
             knee_joint_bias_force = knee_joint_bias_force[:min_length]
             human_knee_torque = human_knee_torque[:min_length]
-
+            
             plt.figure(1)
             plt.subplot(6, 1, 1)
             plt.plot(t, np.subtract(qref0[:min_length], qact0[:min_length]), "k")
@@ -417,8 +456,10 @@ with open("sensor_data.csv", mode="a") as file:
             plt.plot(t, np.subtract(qref1[:min_length], qact1[:min_length]), "k")
             plt.plot(t, qref1[:min_length], "r")
             plt.plot(t, qact1[:min_length], "b")
+            plt.plot(t, qact_exo_lhip[:min_length], "g")
 
-            plt.legend(["error", "qref_left_hip", "qact_left_hip"])
+
+            plt.legend(["error", "qref_left_hip", "qact_left_hip", "qact_exo_lhip"])
             plt.ylabel("position/angle (rad)")
 
             plt.subplot(6, 1, 3)
@@ -439,8 +480,6 @@ with open("sensor_data.csv", mode="a") as file:
             # plt.plot(t, mujoco.mju_sub(knee_joint_smooth_force, knee_joint_bias_force, model.nv), "y")
 
             plt.subplot(6, 1, 4)
-            # plt.plot(t, qact_exo_lknee, "g-")
-            # plt.plot(t, qact_exo_lknee_inertia, "b-")
             plt.plot(t, np.subtract(qref3[:min_length], qact3[:min_length]), "k")
             plt.plot(t, qref3[:min_length], "r")
             plt.plot(t, qact3[:min_length], "b")
@@ -457,10 +496,11 @@ with open("sensor_data.csv", mode="a") as file:
 
             plt.subplot(6, 1, 5)
             plt.plot(t, err_exo_left_knee[:min_length], "r")
-            # plt.plot(t, exo_left_knee_control_signal[:min_length], "k")
+            plt.plot(t, err_exo_left_hip[:min_length], "b")
             plt.legend(
                 [
-                    "interaction_torque", 
+                    "interaction_torque_lknee", 
+                    "interaction_torque_lhip"
                     # "exo_left_knee_control_signal"
                 ]
             )
