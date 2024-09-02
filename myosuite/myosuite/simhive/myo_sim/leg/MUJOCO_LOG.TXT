@@ -58,3 +58,72 @@ ERROR: Python exception raised
 Wed Aug 28 17:08:25 2024
 ERROR: Python exception raised
 
+Fri Aug 30 09:52:38 2024
+WARNING: mju_openResource: unknown file 'path_to_minimal.xml'
+
+Fri Aug 30 09:54:02 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 0. The simulation is unstable. Time = 0.3200.
+
+Fri Aug 30 09:54:13 2024
+ERROR: Python exception raised
+
+Fri Aug 30 12:25:44 2024
+ERROR: Python exception raised
+
+Fri Aug 30 12:26:11 2024
+ERROR: Python exception raised
+
+Fri Aug 30 12:28:10 2024
+ERROR: Python exception raised
+
+Fri Aug 30 12:28:38 2024
+ERROR: Python exception raised
+
+Fri Aug 30 12:29:48 2024
+ERROR: Python exception raised
+
+Fri Aug 30 12:30:02 2024
+ERROR: Python exception raised
+
+Fri Aug 30 13:45:55 2024
+ERROR: Python exception raised
+
+Fri Aug 30 13:46:30 2024
+ERROR: Python exception raised
+
+Fri Aug 30 13:49:09 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:15:54 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:16:41 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:18:11 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:19:02 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:20:13 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:20:57 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:21:39 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:22:39 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:23:16 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:24:12 2024
+ERROR: Python exception raised
+
+Fri Aug 30 15:24:42 2024
+ERROR: Python exception raised
+

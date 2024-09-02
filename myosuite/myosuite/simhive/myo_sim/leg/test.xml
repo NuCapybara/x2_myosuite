@@ -1,0 +1,8 @@
+<mujoco model="minimal">
+    <option timestep="0.08"/>
+    <worldbody>
+        <body name="body" pos="0 0 1">
+            <geom size="0.1" type="sphere"/>
+        </body>
+    </worldbody>
+</mujoco>
