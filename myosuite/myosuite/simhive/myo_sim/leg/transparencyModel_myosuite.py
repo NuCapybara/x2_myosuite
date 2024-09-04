@@ -52,7 +52,7 @@ q1_init = 0  # Initial joint angle of human hip joint (left human hip)
 q1_end = 0  # desired end joint angle of human hip joint (left human hip)
 
 q2_init = 0  # Initial joint angle of human knee joint (right human knee)
-q2_end = 0  # desired end joint angle of human knee joint (right human knee)
+q2_end = np.pi/2 # desired end joint angle of human knee joint (right human knee)
 q3_init = 0  # Initial joint angle of human hip joint (right human hip)
 q3_end = 0  # desired end joint angle of human hip joint (right human hip)
 
@@ -71,6 +71,8 @@ exo_knee_act_force = []
 exo_knee_contraint_force = []
 err_exo_left_knee = []
 err_exo_left_hip = []
+err_exo_right_knee = []
+err_exo_right_hip = []
 exo_left_knee_control_signal = []
 qact_exo_rknee_inertia = []
 qact_exo_rknee = []
@@ -114,7 +116,7 @@ def controller(model, data):
         return
     # Define the amplitude and frequency of the sine wave
     amplitude = 1.37 / 2.0  # example amplitude (can be adjusted)
-    frequency = 1  # example frequency in Hz (can be adjusted)
+    frequency = 0.5  # example frequency in Hz (can be adjusted)
     offset = 1.37 / 2.0  # example offset (can be adjusted)
 
     if time > t_end:
@@ -126,19 +128,27 @@ def controller(model, data):
     q0dot_ref = 2 * np.pi * frequency * amplitude * np.cos(2 * np.pi * frequency * time)
 
     q1_ref = (
-        a_jnt1[0] + a_jnt1[1] * time + a_jnt1[2] * (time**2) + a_jnt1[3] * (time**3)
+        amplitude * np.sin(2 * np.pi * frequency * time) + offset
     )
-    q1dot_ref = a_jnt1[1] + 2 * a_jnt1[2] * time + 3 * a_jnt1[3] * (time**2)
-
+    q1dot_ref = -q0dot_ref
+    # q2_ref = (
+    #     a_jnt2[0] + a_jnt2[1] * time + a_jnt2[2] * (time**2) + a_jnt2[3] * (time**3)
+    # )
+    # q2dot_ref = a_jnt2[1] + 2 * a_jnt2[2] * time + 3 * a_jnt2[3] * (time**2)
     q2_ref = (
-        a_jnt2[0] + a_jnt2[1] * time + a_jnt2[2] * (time**2) + a_jnt2[3] * (time**3)
+        amplitude * np.sin(2 * np.pi * frequency * time) + offset
     )
-    q2dot_ref = a_jnt2[1] + 2 * a_jnt2[2] * time + 3 * a_jnt2[3] * (time**2)
+    q2dot_ref = 2 * np.pi * frequency * amplitude * np.cos(2 * np.pi * frequency * time)
 
+    # q3_ref = (
+    #     a_jnt3[0] + a_jnt3[1] * time + a_jnt3[2] * (time**2) + a_jnt3[3] * (time**3)
+    # )
+    # q3dot_ref = a_jnt3[1] + 2 * a_jnt3[2] * time + 3 * a_jnt3[3] * (time**2)
     q3_ref = (
-        a_jnt3[0] + a_jnt3[1] * time + a_jnt3[2] * (time**2) + a_jnt3[3] * (time**3)
+        amplitude * np.sin(2 * np.pi * frequency * time) + offset
     )
-    q3dot_ref = a_jnt3[1] + 2 * a_jnt3[2] * time + 3 * a_jnt3[3] * (time**2)
+    q3dot_ref = 2 * np.pi * frequency * amplitude * np.cos(2 * np.pi * frequency * time)
+
 
     kp = 15
     kd = 0.5
@@ -177,6 +187,11 @@ def controller(model, data):
     actid_right_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "psoas_r")
     data.ctrl[actid_right_hip] = kp * (q3_ref - data.qpos[qpos_right_hip]) + kd * (
         q3dot_ref - data.qvel[qpos_right_hip]
+    )  # right hip(glmax1_r/glmax2_r/glmax3_r)
+
+    actid_right_knee = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "gasmed_r")
+    data.ctrl[actid_right_knee] = kp * (q2_ref - data.qpos[qpos_right_knee]) + kd * (
+        q2dot_ref - data.qvel[qpos_right_knee]
     )  # right hip(glmax1_r/glmax2_r/glmax3_r)
 
     # Append to lists
@@ -225,9 +240,9 @@ def controller(model, data):
     
     # Actuate the left thigh joint of the exoskeleton-Transparency control
     # Issue: seems transparency model on both knee and hip will result in the fluctuation of the interaction torque,
-    trans_kp = 0.9
+    trans_kp = 1.2
     # trans_kd = 0.000001
-    trans_kd = 0.000
+    trans_kd = -0.00001
     M_thigh = 2.1844
     len_thigh = 0.37
     alpha_left = data.qpos[qpos_exo_left_hip_inertia]
@@ -389,6 +404,9 @@ def controller(model, data):
     prev_torque_exo_rknee = err_int_t_exo_rknee_
     # record the prev torque for the next time step using
     prev_torque_exo_rhip = err_int_t_exo_hip_right
+
+    err_exo_right_knee.append(err_int_t_exo_rknee_)
+    err_exo_right_hip.append(err_int_t_exo_hip_right)
 
 
     # print(data.qpos[22])
@@ -685,15 +703,15 @@ with open("sensor_data.csv", mode="a") as file:
             plt.ylabel("Torque difference(Nm)")
 
             plt.subplot(6, 1, 6)
-            plt.plot(t, exo_left_knee_control_signal[:min_length], "r")
-            plt.plot(t, exo_knee_act_force[:min_length], "b")
+            plt.plot(t, err_exo_right_knee[:min_length], "r")
+            plt.plot(t, err_exo_right_hip[:min_length], "b")
             plt.legend(
                 [
-                    "exo left knee control signal",
-                    "exo knee actuator torque(Nm)",
+                    "err_exo_right_knee",
+                    "err_exo_right_hip",
                 ]
             )
-            plt.ylabel("signal & actuator torque")
+            plt.ylabel("torque")
 
             plt.show(block=True)
             break
