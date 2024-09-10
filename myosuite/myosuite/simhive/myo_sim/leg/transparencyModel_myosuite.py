@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import csv
 import math
 
-# This file is used to analyze the force distribution on the human feets, there are two sensors uploaded on
-# the human feets, the force data is collected and analyzed in this file. We compare the whole system's gravitational
-# force and the force data collected from the sensors. The force data is collected from the sensors and the gravity
+# This file is used to control the exoskeleton in the transparency mode to follow the human knee joint angle.
+# The control signal is calculated by the PD controller on the interaction torque
+# between the exoskeleton and the human.
 
 # Path to the XML file
 xml_path = "myolegs_compatible.xml"
@@ -22,11 +22,12 @@ lastx = 0
 lasty = 0
 
 
-# Time duration for the motion
+# Time duration for the motion control
 t_init = 2
 t_end = 10
 t = []
 
+# Containers for storing the joint angles
 qact0 = []
 qref0 = []
 qact1 = []
@@ -43,19 +44,12 @@ prev_torque_exo_rhip = None
 prev_torque_exo_rknee = None
 time_prev = 0
 
-
-# Input parameters. The desired starting point and ending point(in angle [rad])
+# The desired starting angle starts from 0 for each joint(in angle [rad])
 
 q0_init = 0  # Initial joint angle of human knee joint (left human knee)
-q0_end = 1.37 / 2.0  # desired end joint angle of human knee joint (left human knee)
 q1_init = 0  # Initial joint angle of human hip joint (left human hip)
-q1_end = 0  # desired end joint angle of human hip joint (left human hip)
-
 q2_init = 0  # Initial joint angle of human knee joint (right human knee)
-q2_end = np.pi/2 # desired end joint angle of human knee joint (right human knee)
 q3_init = 0  # Initial joint angle of human hip joint (right human hip)
-q3_end = 0  # desired end joint angle of human hip joint (right human hip)
-
 
 # Containers
 qact_exo_lknee_inertia = []
@@ -83,38 +77,17 @@ right_foot_sensor = []
 # contact_force = []
 
 
-# Generate the trajectory
-def generate_trajectory(t0, tf, q0, qf):
-    time_diff3 = (tf - t0) ** 3
-    a0 = qf * (t0**2) * (3 * tf - t0) + q0 * (tf**2) * (tf - 3 * t0)
-    a0 = a0 / time_diff3
-    a1 = 6 * t0 * tf * (q0 - qf)
-    a1 = a1 / time_diff3
-    a2 = 3 * (tf + t0) * (qf - q0)
-    a2 = a2 / time_diff3
-    a3 = 2 * (q0 - qf)
-    a3 = a3 / time_diff3
-    return a0, a1, a2, a3
-
-
-def init_controller(model, data):
-    global a_jnt0, a_jnt1, a_jnt2, a_jnt3
-    a_jnt0 = generate_trajectory(t_init, t_end, q0_init, q0_end)
-    a_jnt1 = generate_trajectory(t_init, t_end, q1_init, q1_end)
-    a_jnt2 = generate_trajectory(t_init, t_end, q2_init, q2_end)
-    a_jnt3 = generate_trajectory(t_init, t_end, q3_init, q3_end)
-
-
+# controller function to control the exoskeleton to follow the human knee joint angle
 def controller(model, data):
-    global a_jnt0, a_jnt1, a_jnt2, a_jnt3
     global prev_torque_exo_lhip, prev_torque_exo_lknee, prev_torque_exo_rhip, prev_torque_exo_rknee
-    global prev_grav_lhip, prev_grav_lknee, prev_grav_rhip, prev_grav_rknee
     global time_prev
 
     time = data.time
     if time < t_init:
         return
-    # Define the amplitude and frequency of the sine wave
+    # User Input: user can specify the amplitude and frequency of the movement
+    # Offset should be defined as the knee joints cannot go negative
+    # Define the amplitude and frequency of the sine wave for the motion
     amplitude = 1.37 / 2.0  # example amplitude (can be adjusted)
     frequency = 0.5  # example frequency in Hz (can be adjusted)
     offset = 1.37 / 2.0  # example offset (can be adjusted)
@@ -127,69 +100,73 @@ def controller(model, data):
     q0_ref = amplitude * np.sin(2 * np.pi * frequency * time) + offset
     q0dot_ref = 2 * np.pi * frequency * amplitude * np.cos(2 * np.pi * frequency * time)
 
-    q1_ref = (
-        amplitude * np.sin(2 * np.pi * frequency * time) + offset
-    )
+    q1_ref = amplitude * np.sin(2 * np.pi * frequency * time) + offset
     q1dot_ref = -q0dot_ref
-    # q2_ref = (
-    #     a_jnt2[0] + a_jnt2[1] * time + a_jnt2[2] * (time**2) + a_jnt2[3] * (time**3)
-    # )
-    # q2dot_ref = a_jnt2[1] + 2 * a_jnt2[2] * time + 3 * a_jnt2[3] * (time**2)
-    q2_ref = (
-        amplitude * np.sin(2 * np.pi * frequency * time) + offset
-    )
+
+    q2_ref = amplitude * np.sin(2 * np.pi * frequency * time) + offset
     q2dot_ref = 2 * np.pi * frequency * amplitude * np.cos(2 * np.pi * frequency * time)
 
-    # q3_ref = (
-    #     a_jnt3[0] + a_jnt3[1] * time + a_jnt3[2] * (time**2) + a_jnt3[3] * (time**3)
-    # )
-    # q3dot_ref = a_jnt3[1] + 2 * a_jnt3[2] * time + 3 * a_jnt3[3] * (time**2)
-    q3_ref = (
-        amplitude * np.sin(2 * np.pi * frequency * time) + offset
-    )
+    q3_ref = amplitude * np.sin(2 * np.pi * frequency * time) + offset
     q3dot_ref = 2 * np.pi * frequency * amplitude * np.cos(2 * np.pi * frequency * time)
 
-
+    # Kp and Kd values for the PD position controller
     kp = 15
     kd = 0.5
+    # Kp_exo_Force is used to fix the hip joint angle of the exoskeleton
+    # Should only be used when hip transparency mode is off, or they will interact each other
     kp_exo_force = 0
     actid_left_knee = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "gasmed_l")
+    # Avoid the case when actid is not found
+    ### Actuate the human left knee joint
     if actid_left_knee != -1:
         data.ctrl[actid_left_knee] = kp * (q0_ref - data.qpos[qpos_left_knee]) + kd * (
             q0dot_ref - data.qvel[qpos_left_knee]
         )
     # left knee (bflh_l/bfsh_l/gaslat_l/gasmed_l->gasmed_l will not relate to the hip part, good for isolation)
 
-    ###Actuate the human left hip joint
+    ### Actuate the human left hip joint
     actid_left_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "psoas_l")
     data.ctrl[actid_left_hip] = kp * (q1_ref - data.qpos[qpos_left_hip]) + kd * (
         q1dot_ref - data.qvel[qpos_left_hip]
     )
 
-    ###Actuate the left hip joint of the **exoskeleton** to keep the hip joint angle as 0
-
+    ### Actuate the left hip joint of the **exoskeleton** to keep the hip joint angle as 0
     left_exo_hip_joint_id = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_JOINT, "left_hip_joint"
     )
-    qpos_left_exo_hip = model.jnt_qposadr[left_exo_hip_joint_id]
 
-    err_exo_left_hip_qpos = 0 - data.qpos[qpos_left_exo_hip]
+    qpos_left_exo_hip = model.jnt_qposadr[
+        left_exo_hip_joint_id
+    ]  # qpos index for the exoskeleton left hip joint
+
+    err_exo_left_hip_qpos = (
+        0 - data.qpos[qpos_left_exo_hip]
+    )  # error between the current exoskeleton hip joint angle and the reference angle
+
     actid_left_exo_hip = mujoco.mj_name2id(
-        model, mujoco.mjtObj.mjOBJ_ACTUATOR, "left_hip_joint_motor"
+        model,
+        mujoco.mjtObj.mjOBJ_ACTUATOR,
+        "left_hip_joint_motor",  # actuator id for the exoskeleton left hip joint
     )
-    # # print("The left hip joint id is: ", actid_left_exo_hip)
-    data.ctrl[actid_left_exo_hip] = kp_exo_force * err_exo_left_hip_qpos
-    qact_exo_lhip.append(data.qpos[qpos_left_exo_hip])
-    # print(data.ctrl[actid_left_exo_hip])                # data.ctrl[actid_left_exo_hip] = (
-                #     trans_kp * err_int_t_exo_hip_left + trans_kd * dt_err_int_t_exo_lhip
-                # ) + bias_torque_left_thigh_calculated_r)
+    data.ctrl[actid_left_exo_hip] = (
+        kp_exo_force * err_exo_left_hip_qpos
+    )  # PD control on the exoskeleton left hip joint
+    qact_exo_lhip.append(
+        data.qpos[qpos_left_exo_hip]
+    )  # append the exoskeleton left hip joint angle to the list
 
-    actid_right_hip = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "psoas_r")
+    ### Actuate the human right hip joint
+    actid_right_hip = mujoco.mj_name2id(
+        model, mujoco.mjtObj.mjOBJ_ACTUATOR, "psoas_r"
+    )  # actuator id for the human posoas_r muscle, for right hip joint control
     data.ctrl[actid_right_hip] = kp * (q3_ref - data.qpos[qpos_right_hip]) + kd * (
         q3dot_ref - data.qvel[qpos_right_hip]
     )  # right hip(glmax1_r/glmax2_r/glmax3_r)
 
-    actid_right_knee = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "gasmed_r")
+    ### Actuate the human right knee joint
+    actid_right_knee = mujoco.mj_name2id(
+        model, mujoco.mjtObj.mjOBJ_ACTUATOR, "gasmed_r"
+    )
     data.ctrl[actid_right_knee] = kp * (q2_ref - data.qpos[qpos_right_knee]) + kd * (
         q2dot_ref - data.qvel[qpos_right_knee]
     )  # right hip(glmax1_r/glmax2_r/glmax3_r)
@@ -197,17 +174,16 @@ def controller(model, data):
     # Append to lists
     t.append(data.time)
 
-    qact0.append(data.qpos[qpos_left_knee])  # left knee
-    qact1.append(data.qpos[qpos_left_hip])  # left hip
-    qact2.append(data.qpos[qpos_right_knee])  # right knee
-    qact3.append(data.qpos[qpos_right_hip])  # right hip
+    qact0.append(data.qpos[qpos_left_knee])  # left knee joint actual positino
+    qact1.append(data.qpos[qpos_left_hip])  # left hip joint actual position
+    qact2.append(data.qpos[qpos_right_knee])  # right knee actual position
+    qact3.append(data.qpos[qpos_right_hip])  # right hip actual position
 
-    # contact_force.append(data.sensordata[0])
+    ### Append the foot plate sensor data, foot plates implemented as contact force sensors
     left_foot_sensor.append(data.sensordata[0])
     right_foot_sensor.append(data.sensordata[1])
 
-
-    # Finding the qpos index for the exoskeleton
+    ### Finding the joint id for the exoskeleton joint
     right_exo_knee_inertia_joint_id = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_JOINT, "right_knee_joint_drive"
     )
@@ -224,38 +200,46 @@ def controller(model, data):
     right_exo_knee_joint_id = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_JOINT, "right_knee_joint"
     )
-
+    ### Finding the actuator id for the exoskeleton joint
     actid_right_exo_hip = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_ACTUATOR, "right_hip_joint_motor"
     )
     actid_right_exo_knee = mujoco.mj_name2id(
         model, mujoco.mjtObj.mjOBJ_ACTUATOR, "right_knee_joint_motor"
     )
+    ### Finding the qpos id for the exoskeleton joint
     qpos_exo_right_knee_inertia = model.jnt_qposadr[right_exo_knee_inertia_joint_id]
     qpos_exo_right_hip_inertia = model.jnt_qposadr[right_exo_hip_inertia_joint_id]
     qpos_exo_left_hip_inertia = model.jnt_qposadr[left_exo_hip_inertia_joint_id]
     qpos_exo_right_knee = model.jnt_qposadr[right_exo_knee_joint_id]
+    ### Finding the dofadr id for the exoskeleton joint [for frc_smooth and frc_constraint functions]
     dofadr_exo_right_knee = model.jnt_dofadr[right_exo_knee_joint_id]
 
-    
-    # Actuate the left thigh joint of the exoskeleton-Transparency control
-    # Issue: seems transparency model on both knee and hip will result in the fluctuation of the interaction torque,
-    trans_kp = 1.2
-    # trans_kd = 0.000001
-    trans_kd = -0.00001
-    M_thigh = 2.1844
-    len_thigh = 0.37
-    alpha_left = data.qpos[qpos_exo_left_hip_inertia]
-    theta_left = data.qpos[qpos_exo_left_knee_inertia]
-    alpha_right = data.qpos[qpos_exo_right_hip_inertia]
-    theta_right = data.qpos[qpos_exo_right_knee_inertia]
-    com_shank_to_knee = 0.312012
-    com_thigh_to_hip = 0.254625
-    M_shank = 1.6105
-    g = 9.81
+    ### Actuate the exoskeleton- Transparency control on
+    trans_kp = 1.0
+    trans_kd = 0.00001
+    M_thigh = 2.1844  # mass of the exoskeleton thigh, can be found in xml file
+    len_thigh = 0.37  # length of the exoskeleton thigh, can be found in xml file
+    alpha_left = data.qpos[
+        qpos_exo_left_hip_inertia
+    ]  # angle of the exoskeleton left hip joint
+    theta_left = data.qpos[
+        qpos_exo_left_knee_inertia
+    ]  # angle of the exoskeleton left knee joint
+    alpha_right = data.qpos[
+        qpos_exo_right_hip_inertia
+    ]  # angle of the exoskeleton right hip joint
+    theta_right = data.qpos[
+        qpos_exo_right_knee_inertia
+    ]  # angle of the exoskeleton right knee joint
+    com_shank_to_knee = 0.312012  # distance from the shank center of mass to knee, can be found in xml file
+    com_thigh_to_hip = 0.254625  # distance from the thigh center of mass to hip, can be found in xml file
+    M_shank = 1.6105  # mass of the exoskeleton shank, can be found in xml file
+    g = 9.81  # gravity constant
 
+    ### Transpanrency model on left hip. PD control on interaction torque.
 
-    # Transpanrency model on left hip. PD control on interaction torque.
+    # calculate the gravity torque on the exoskeleton left thigh
     bias_torque_left_thigh_calculated = (
         (math.sin(alpha_left) * len_thigh + com_shank_to_knee * math.sin(theta_left))
         * M_shank
@@ -263,7 +247,10 @@ def controller(model, data):
     ) + (
         math.sin(data.qpos[qpos_exo_left_hip_inertia]) * M_thigh * g * com_thigh_to_hip
     )
-    dofadr_exo_left_hip = model.jnt_dofadr[left_exo_hip_joint_id]
+
+    dofadr_exo_left_hip = model.jnt_dofadr[
+        left_exo_hip_joint_id
+    ]  # dofadr index for the exoskeleton left hip joint
     err_int_t_exo_hip_left = 0 - (
         data.qfrc_smooth[dofadr_exo_left_hip]
         + data.qfrc_constraint[dofadr_exo_left_hip]
@@ -272,6 +259,12 @@ def controller(model, data):
 
     # calculate the kd part(time derivative of the interaction torque error)
     dt = time - time_prev
+    if dt <= 1e-9:
+        print("Invalid time step detected")
+        return
+    else:
+        time_prev = time
+
     if prev_torque_exo_lhip is not None:
         if prev_torque_exo_lhip == 0:
             print(
@@ -284,25 +277,25 @@ def controller(model, data):
                     err_int_t_exo_hip_left - prev_torque_exo_lhip
                 ) / dt
 
-                # PD control. kd part is calculated by （err_now - err_prev）/ dt
+                ### PD control. kd part is calculated by （err_now - err_prev）/ dt
+                # Goal:minimize torque_interacion:
+                # T_int = T_exo_joint - bias_torque_calculated
+                #      = qfrc_smooth + qfrc_constraint - bias_torque_calculated
                 data.ctrl[actid_left_exo_hip] = (
                     trans_kp * err_int_t_exo_hip_left + trans_kd * dt_err_int_t_exo_lhip
                 ) + bias_torque_left_thigh_calculated
             else:
-                print("Ooops the time step is < 0, the dt is", dt)
-    # record the prev torque for the next time step using
+                return  # time step is invalid
+    ### record the prev torque for the next time step use
     prev_torque_exo_lhip = err_int_t_exo_hip_left
+    ### record the last time to get the time difference
     time_prev = time
-
-    # # PD control. kd part is calculated by （err_now - err_prev）/ dt
-
+    ### Append the left hip interaction torque
     err_exo_left_hip.append(err_int_t_exo_hip_left)
 
-    # Goal:minimize torque_interacion:
-    # T_int = T_exo_joint - bias_torque_calculated
-    #      = qfrc_smooth + qfrc_constraint - bias_torque_calculated
-
     qact_exo_lknee_inertia.append(data.qpos[qpos_exo_left_knee_inertia])
+
+    ### Transparency model on the left knee joint. PD control on interaction torque.
     bias_torque_calculated_left_knee = (
         math.sin(math.pi - data.qpos[qpos_exo_left_knee_inertia])
         * (M_shank)
@@ -329,19 +322,21 @@ def controller(model, data):
             data.ctrl[actid_left_exo_knee] = (
                 trans_kp * err_int_t_exo_lknee_ + trans_kd * dt_err_int_t_exo_lknee
             ) + bias_torque_calculated_left_knee
+        else:
+            print("Ooops the time step is < 0, the dt is", dt)
+            return
 
     prev_torque_exo_lknee = err_int_t_exo_lknee_
 
-    # plus the bias torque calculated for the feed forward control. bc when the int torque is 0,
-    # at the time, the control signal is 0 by just kp*err_int_torque, we need to compensate the bias torque,
+    # when actuating the transparency mode, we plus the bias torque calculated for the feed forward control.
+    # bc when the int torque is 0, at the time, the control signal is 0 by just kp*err_int_torque, we need to compensate the bias torque,
     # so we add the bias torque calculated
     # data.ctrl[actid_left_exo_knee] = (
-    #     trans_kp * err_int_t_exo_knee_ + bias_torque_calculated
+    #     trans_kp * err_int_t_exo_knee_ + kd * err_dot_int_t_exo_knee + bias_torque_calculated
     # )
 
     err_exo_left_knee.append(err_int_t_exo_lknee_)
     exo_left_knee_control_signal.append(data.ctrl[actid_left_exo_knee])
-
 
     # Transparency model on the right hip joint. PD control on interaction torque.
     bias_torque_right_thigh_calculated = (
@@ -371,12 +366,13 @@ def controller(model, data):
 
                 # PD control. kd part is calculated by （err_now - err_prev）/ dt
                 data.ctrl[actid_right_exo_hip] = (
-                    trans_kp * err_int_t_exo_hip_right + trans_kd * dt_err_int_t_exo_rhip
+                    trans_kp * err_int_t_exo_hip_right
+                    + trans_kd * dt_err_int_t_exo_rhip
                 ) + bias_torque_right_thigh_calculated
             else:
-                print("Ooops the time step is < 0, right! the dt is", dt)
+                return  # invalid time step
 
-    #Transparency model on the right knee joint. PD control on interaction torque.
+    # Transparency model on the right knee joint. PD control on interaction torque.
     qact_exo_rknee_inertia.append(data.qpos[qpos_exo_right_knee_inertia])
     bias_torque_calculated_rknee = (
         math.sin(math.pi - data.qpos[qpos_exo_right_knee_inertia])
@@ -400,16 +396,17 @@ def controller(model, data):
             data.ctrl[actid_right_exo_knee] = (
                 trans_kp * err_int_t_exo_rknee_ + trans_kd * dt_err_int_t_exo_rknee
             ) + bias_torque_calculated_rknee
+        else:
+            return  # invalid time step
 
+    ### record the prev torque for the next time step using
     prev_torque_exo_rknee = err_int_t_exo_rknee_
-    # record the prev torque for the next time step using
     prev_torque_exo_rhip = err_int_t_exo_hip_right
 
     err_exo_right_knee.append(err_int_t_exo_rknee_)
     err_exo_right_hip.append(err_int_t_exo_hip_right)
 
-
-    # print(data.qpos[22])
+    # Append to reference angle lists
     qref0.append(q0_ref)
     qref1.append(q1_ref)
     qref2.append(q2_ref)
@@ -418,18 +415,22 @@ def controller(model, data):
     human_knee_torque.append(data.ctrl[actid_left_knee])
 
     # qfrc_smooth index depends on nv, degree of freedom
-    knee_joint_smooth_force.append(data.qfrc_smooth[dofadr_exo_left_knee])
-    knee_joint_bias_force.append(data.qfrc_bias[dofadr_exo_left_knee])
-    knee_passive_force.append(data.qfrc_passive[dofadr_exo_left_knee])
-    exo_knee_act_force.append(data.qfrc_actuator[dofadr_exo_left_knee])
-    exo_knee_contraint_force.append(data.qfrc_constraint[dofadr_exo_left_knee])
-    # print(
-    #     "The knee joint bias force is: ",
-    #     data.qfrc_bias[3],
-    #     "the knee joint grav forces is",
-    #     bias_torque_calculated,
-    # )
-    # knee_joint_passive_force.append(data.qfrc_bias[3])
+    ### Append the force data into the lists
+    knee_joint_smooth_force.append(
+        data.qfrc_smooth[dofadr_exo_left_knee]
+    )  # the unconstraint force on the exo left knee joint
+    knee_joint_bias_force.append(
+        data.qfrc_bias[dofadr_exo_left_knee]
+    )  # the bias force on the exo left knee joint
+    knee_passive_force.append(
+        data.qfrc_passive[dofadr_exo_left_knee]
+    )  # the passive force on the exo left knee joint
+    exo_knee_act_force.append(
+        data.qfrc_actuator[dofadr_exo_left_knee]
+    )  # the actuator force on the exo left knee joint
+    exo_knee_contraint_force.append(
+        data.qfrc_constraint[dofadr_exo_left_knee]
+    )  # the constraint force on the exo left knee joint
 
 
 def keyboard(window, key, scancode, act, mods):
@@ -592,32 +593,6 @@ data.qpos[qpos_left_hip] = q1_init
 data.qpos[qpos_right_knee] = q2_init
 data.qpos[qpos_right_hip] = q3_init
 
-print(
-    "************** the init knee joint angle is: ",
-    data.qpos[qpos_left_knee],
-    " and ",
-    q0_init,
-)
-print(
-    "************** the init hip joint angle is: ",
-    data.qpos[qpos_left_hip],
-    " and ",
-    q1_init,
-)
-print(
-    "************** the init knee joint angle is: ",
-    data.qpos[qpos_right_knee],
-    " and ",
-    q2_init,
-)
-print(
-    "************** the init hip joint angle is: ",
-    data.qpos[qpos_right_hip],
-    " and ",
-    q3_init,
-)
-
-init_controller(model, data)
 mujoco.set_mjcb_control(controller)
 
 
@@ -634,9 +609,9 @@ with open("sensor_data.csv", mode="a") as file:
 
         # print(knee_joint_passive_force)
         if data.time >= simend:
-            min_length = min(
-                len(t), len(knee_joint_smooth_force), len(human_knee_torque)
-            )
+            min_length = min_length = min(len(t), len(qref0), len(qact0))
+            # Ensure all lists are truncated to min_length
+
             t = t[:min_length]
             knee_joint_smooth_force = knee_joint_smooth_force[:min_length]
             knee_joint_bias_force = knee_joint_bias_force[:min_length]
@@ -654,9 +629,8 @@ with open("sensor_data.csv", mode="a") as file:
             plt.plot(t, np.subtract(qref1[:min_length], qact1[:min_length]), "k")
             plt.plot(t, qref1[:min_length], "r")
             plt.plot(t, qact1[:min_length], "b")
-            plt.plot(t, qact_exo_lhip[:min_length], "g")
 
-            plt.legend(["error", "qref_left_hip", "qact_left_hip", "qact_exo_lhip"])
+            plt.legend(["error", "qref_left_hip", "qact_left_hip"])
             plt.ylabel("position/angle (rad)")
 
             plt.subplot(6, 1, 3)

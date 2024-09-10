@@ -127,3 +127,6 @@ ERROR: Python exception raised
 Fri Aug 30 15:24:42 2024
 ERROR: Python exception raised
 
+Fri Sep  6 14:14:33 2024
+WARNING: mju_openResource: unknown file 'cartpole.xml'
+

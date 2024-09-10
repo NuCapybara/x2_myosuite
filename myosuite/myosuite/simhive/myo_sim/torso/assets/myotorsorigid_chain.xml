@@ -22,15 +22,15 @@
         <site name="torso_anchor_left" size="0.01" rgba = "0 0 1 1" pos="-.065 0.16 .060"/>
         <site name="torso_anchor_right" size="0.01" rgba = "0 0 1 1" pos="-.065 -0.16 .060"/>
         <geom type="ellipsoid" class="myotorso_coll" size="0.095 0.140 0.140"  pos="-.085 0 .200" euler="1.57 0 0"/>
-        <!-- <geom type="capsule" class="myotorso_coll" size="0.110 0.065"  pos="-.090 0 .330" euler="1.57 0 0"/> -->
-        <!-- <geom type="capsule" class="myotorso_coll" size="0.075 0.145"  pos="-.110 0 .415" euler="1.57 0 0"/> -->
+        <geom type="capsule" class="myotorso_coll" size="0.110 0.065"  pos="-.090 0 .330" euler="1.57 0 0"/> -->
+        <geom type="capsule" class="myotorso_coll" size="0.075 0.145"  pos="-.110 0 .415" euler="1.57 0 0"/>
 
         <inertial pos="-0.07 0 0.287572" mass="37.4" diaginertia="0.910036 0.839113 0.34246" />
         <!-- Arms -->
-        <!-- <geom name="humerus_r" type="capsule" class="myotorso_coll" size="0.042" fromto="-.094 -.162 .445 -.088 -.175 .166"/> -->
-        <!-- <geom name="ulna_rv" type="capsule" class="myotorso_coll" size="0.030" fromto="-.088 -.175 .166 -.1 -.2 -.092"/>
+        <geom name="humerus_r" type="capsule" class="myotorso_coll" size="0.042" fromto="-.094 -.162 .445 -.088 -.175 .166"/>
+        <geom name="ulna_rv" type="capsule" class="myotorso_coll" size="0.030" fromto="-.088 -.175 .166 -.1 -.2 -.092"/>
         <geom name="humerus_l" type="capsule" class="myotorso_coll" size="0.042" fromto="-.094 .162 .445 -.088 .175 .166"/>
-        <geom name="ulna_lv" type="capsule" class="myotorso_coll" size="0.030" fromto="-.088 .175 .166 -.1 .2 -.092"/> -->
+        <geom name="ulna_lv" type="capsule" class="myotorso_coll" size="0.030" fromto="-.088 .175 .166 -.1 .2 -.092"/>
 
     </body>
 </mujocoinclude>
