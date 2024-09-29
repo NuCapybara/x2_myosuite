@@ -10,6 +10,8 @@ import math
 # This file is used to control the exoskeleton in the transparency mode to follow the human knee joint angle.
 # The control signal is calculated by the PD controller on the interaction torque
 # between the exoskeleton and the human.
+# The motion: both two legs(hip+knee) moving in sin wave motion with the same amplitude and frequency
+# The graph produces a transparency mode interaction torque on both left and right hip and knee
 
 # Path to the XML file
 xml_path = "myolegs_compatible.xml"
@@ -543,6 +545,7 @@ dofadr_exo_left_knee = model.jnt_dofadr[exo_left_knee_joint_id]
 qpos_exo_left_knee = model.jnt_qposadr[exo_left_knee_joint_id]
 
 
+
 print("---------------------------------------------------")
 
 
@@ -618,76 +621,91 @@ with open("sensor_data.csv", mode="a") as file:
             human_knee_torque = human_knee_torque[:min_length]
 
             plt.figure(1)
-            plt.subplot(6, 1, 1)
-            plt.plot(t, np.subtract(qref0[:min_length], qact0[:min_length]), "k")
-            plt.plot(t, qref0[:min_length], "r")
-            plt.plot(t, qact0[:min_length], "b")
-            plt.legend(["error", "qref_left_knee", "qact_left_knee"])
-            plt.ylabel("position/angle (rad)")
+            plt.subplot(2, 1, 1)
+            # plt.plot(t, np.subtract(qref0[:min_length], qact0[:min_length]), "k")
+            # plt.plot(t, qref0[:min_length], "r")
+            # plt.plot(t, qact0[:min_length], "b")
+            # plt.legend(["error", "reference_left_knee_position", "actual_left_knee_position"])
+            # plt.ylabel("position/angle (rad)")
 
-            plt.subplot(6, 1, 2)
-            plt.plot(t, np.subtract(qref1[:min_length], qact1[:min_length]), "k")
-            plt.plot(t, qref1[:min_length], "r")
-            plt.plot(t, qact1[:min_length], "b")
+            # plt.subplot(6, 1, 2)
+            # plt.plot(t, np.subtract(qref1[:min_length], qact1[:min_length]), "k")
+            # plt.plot(t, qref1[:min_length], "r")
+            # plt.plot(t, qact1[:min_length], "b")
 
-            plt.legend(["error", "qref_left_hip", "qact_left_hip"])
-            plt.ylabel("position/angle (rad)")
+            # plt.legend(["error", "reference_left_hip_position", "actual_left_hip_position"])
+            # plt.ylabel("position/angle (rad)")
 
-            plt.subplot(6, 1, 3)
-            # plt.plot(t, qact_exo_lknee, "g-")
-            # plt.plot(t, qact_exo_lknee_inertia, "b-")
-            plt.plot(t, np.subtract(qref2[:min_length], qact2[:min_length]), "k")
-            plt.plot(t, qref2[:min_length], "r")
-            plt.plot(t, qact2[:min_length], "b")
+            # plt.subplot(6, 1, 3)
+            # # plt.plot(t, qact_exo_lknee, "g-")
+            # # plt.plot(t, qact_exo_lknee_inertia, "b-")
+            # plt.plot(t, np.subtract(qref2[:min_length], qact2[:min_length]), "k")
+            # plt.plot(t, qref2[:min_length], "r")
+            # plt.plot(t, qact2[:min_length], "b")
 
-            plt.legend(
-                [
-                    "error",
-                    "qref_right_knee",
-                    "qact_right_knee",
-                ]
-            )
-            plt.ylabel("position/angle (rad)")
-            # plt.plot(t, mujoco.mju_sub(knee_joint_smooth_force, knee_joint_bias_force, model.nv), "y")
+            # plt.legend(
+            #     [
+            #         "error",
+            #         "reference_right_knee_position",
+            #         "actual_right_knee_position",
+            #     ]
+            # )
+            # plt.ylabel("position/angle (rad)")
+            # # plt.plot(t, mujoco.mju_sub(knee_joint_smooth_force, knee_joint_bias_force, model.nv), "y")
 
-            plt.subplot(6, 1, 4)
-            plt.plot(t, np.subtract(qref3[:min_length], qact3[:min_length]), "k")
-            plt.plot(t, qref3[:min_length], "r")
-            plt.plot(t, qact3[:min_length], "b")
+            # plt.subplot(6, 1, 4)
+            # plt.plot(t, np.subtract(qref3[:min_length], qact3[:min_length]), "k")
+            # plt.plot(t, qref3[:min_length], "r")
+            # plt.plot(t, qact3[:min_length], "b")
 
-            plt.legend(
-                [
-                    "error",
-                    "qref_right_hip",
-                    "qact_right_hip",
-                ]
-            )
-            plt.ylabel("position/angle (rad)")
+            # plt.legend(
+            #     [
+            #         "error",
+            #         "reference_right_hip_position",
+            #         "actual_right_hip_position",
+            #     ]
+            # )
+            # plt.ylabel("position/angle (rad)")
 
-            plt.subplot(6, 1, 5)
+            plt.subplot(2, 1, 1)
             plt.plot(t, err_exo_left_knee[:min_length], "r")
             plt.plot(t, err_exo_left_hip[:min_length], "b")
             plt.legend(
                 [
-                    "interaction_torque_lknee",
-                    "interaction_torque_lhip",
+                    "interaction_torque_left_knee",
+                    "interaction_torque_left_hip",
                     # "exo_left_knee_control_signal"
                 ]
             )
-            plt.ylabel("Torque difference(Nm)")
+            plt.ylabel("Torque(Nm)")
 
-            plt.subplot(6, 1, 6)
+            plt.subplot(2, 1, 2)
             plt.plot(t, err_exo_right_knee[:min_length], "r")
             plt.plot(t, err_exo_right_hip[:min_length], "b")
             plt.legend(
                 [
-                    "err_exo_right_knee",
-                    "err_exo_right_hip",
+                    "interaction_torque_right_knee",
+                    "interaction_torque_right_hip",
                 ]
             )
-            plt.ylabel("torque")
+            plt.ylabel("Torque(Nm)")
+            mean_rknee_int_torque = np.mean(err_exo_right_knee)
+            mean_lknee_int_torque = np.mean(err_exo_left_knee)
+            std_rknee_int_torque = np.std(err_exo_right_knee)
+            std_lknee_int_torque = np.std(err_exo_left_knee)
+
+            mean_rhip_int_torque = np.mean(err_exo_right_hip)
+            mean_lhip_int_torque = np.mean(err_exo_left_hip)
+            std_rhip_int_torque = np.std(err_exo_right_hip)
+            std_lhip_int_torque = np.std(err_exo_left_hip)
+            print("---------------------------------------------------")
+            print("the mean right knee interaction torque and std", mean_rknee_int_torque,  ", " ,std_rknee_int_torque)
+            print("the mean left knee interaction torque and std", mean_lknee_int_torque, ", " ,std_lknee_int_torque)
+            print("the mean right hip interaction torque and std", mean_rhip_int_torque, ", " ,std_rhip_int_torque)
+            print("the mean left hip interaction torque and std", mean_lhip_int_torque, ", " ,std_lhip_int_torque)
 
             plt.show(block=True)
+            
             break
         viewport_width, viewport_height = glfw.get_framebuffer_size(window)
         viewport = mujoco.MjrRect(0, 0, viewport_width, viewport_height)
